@@ -37,6 +37,48 @@ function displayhelp() {
 }
 displayhelp
 
+# GitHub Proxy Configuration
+echo
+echo "=========================================="
+echo " GitHub Proxy Configuration"
+echo "=========================================="
+echo "如果需要使用 GitHub 代理，请输入代理地址。"
+echo "代理地址必须以 / 结尾，例如："
+echo "https://ghfast.top/"
+echo "如果不需要代理，直接按回车即可。"
+echo
+read -r -p "GitHub Proxy: " GITHUB_PROXY
+
+# Validate and normalize GitHub proxy URL
+if [[ -n "$GITHUB_PROXY" ]]; then
+    if [[ "$GITHUB_PROXY" != */ ]]; then
+        echo "错误：代理地址必须以 / 结尾！"
+        echo "例如：https://ghfast.top/"
+        exit 1
+    fi
+
+    if ! [[ "$GITHUB_PROXY" =~ ^https?:// ]]; then
+        echo "错误：代理地址必须以 http:// 或 https:// 开头！"
+        echo "例如：https://ghfast.top/"
+        exit 1
+    fi
+
+    echo "GitHub 代理已启用：${GITHUB_PROXY}"
+else
+    echo "未使用 GitHub 代理，使用原始 GitHub 地址。"
+fi
+
+# Build a GitHub URL. If a proxy was entered, prepend it to the original URL.
+function github_url() {
+    local url="$1"
+
+    if [[ -n "$GITHUB_PROXY" ]]; then
+        echo "${GITHUB_PROXY}${url}"
+    else
+        echo "$url"
+    fi
+}
+
 # Default: use sudo unless --no-sudo is specified
 usesudo="${usesudo:-true}"
 
@@ -196,19 +238,19 @@ cd /opt/rustdesk/ || exit 1
 
 
 #Download latest version of Rustdesk
-RDLATEST=$(curl https://api.github.com/repos/rustdesk/rustdesk-server/releases/latest -s | grep "tag_name" | awk -F'"' '{print $4}')
+RDLATEST=$(curl -fsSL "$(github_url "https://api.github.com/repos/rustdesk/rustdesk-server/releases/latest")" | grep "tag_name" | awk -F'"' '{print $4}')
 
 echo "Installing Rustdesk Server"
 if [ "${ARCH}" = "x86_64" ] ; then
-wget "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-amd64.zip"
+wget "$(github_url "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-amd64.zip")"
 unzip rustdesk-server-linux-amd64.zip
 mv amd64/* /opt/rustdesk/
 elif [ "${ARCH}" = "armv7l" ] ; then
-wget "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-armv7.zip"
+wget "$(github_url "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-armv7.zip")"
 unzip rustdesk-server-linux-armv7.zip
 mv armv7/* /opt/rustdesk/
 elif [ "${ARCH}" = "aarch64" ] ; then
-wget "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-arm64v8.zip"
+wget "$(github_url "https://github.com/rustdesk/rustdesk-server/releases/download/${RDLATEST}/rustdesk-server-linux-arm64v8.zip")"
 unzip rustdesk-server-linux-arm64v8.zip
 mv arm64v8/* /opt/rustdesk/
 fi
@@ -304,11 +346,11 @@ echo "$string64rev"
 
 function setuphttp () {
     # Create windows install script
-    wget https://raw.githubusercontent.com/techahold/rustdeskinstall/master/WindowsAgentAIOInstall.ps1
+    wget "$(github_url "https://raw.githubusercontent.com/techahold/rustdeskinstall/master/WindowsAgentAIOInstall.ps1")"
     $SUDO sed -i "s|secure-string|${string64rev}|g" WindowsAgentAIOInstall.ps1
 
     # Create linux install script
-    wget https://raw.githubusercontent.com/techahold/rustdeskinstall/master/linuxclientinstall.sh
+    wget "$(github_url "https://raw.githubusercontent.com/techahold/rustdeskinstall/master/linuxclientinstall.sh")"
     $SUDO sed -i "s|secure-string|${string64rev}|g" linuxclientinstall.sh
 
     # Download and install gohttpserver
@@ -320,14 +362,14 @@ function setuphttp () {
     fi
     $SUDO chown "${uname}" -R /opt/gohttp
     cd /opt/gohttp
-    GOHTTPLATEST=$(curl https://api.github.com/repos/codeskyblue/gohttpserver/releases/latest -s | grep "tag_name"| awk '{print substr($2, 2, length($2)-3) }')
+    GOHTTPLATEST=$(curl -fsSL "$(github_url "https://api.github.com/repos/codeskyblue/gohttpserver/releases/latest")" | grep "tag_name" | awk '{print substr($2, 2, length($2)-3) }')
 
     echo "Installing Go HTTP Server"
     if [ "${ARCH}" = "x86_64" ] ; then
-    wget "https://github.com/codeskyblue/gohttpserver/releases/download/${GOHTTPLATEST}/gohttpserver_${GOHTTPLATEST}_linux_amd64.tar.gz"
+    wget "$(github_url "https://github.com/codeskyblue/gohttpserver/releases/download/${GOHTTPLATEST}/gohttpserver_${GOHTTPLATEST}_linux_amd64.tar.gz")"
     tar -xf  gohttpserver_${GOHTTPLATEST}_linux_amd64.tar.gz 
     elif [ "${ARCH}" =  "aarch64" ] ; then
-    wget "https://github.com/codeskyblue/gohttpserver/releases/download/${GOHTTPLATEST}/gohttpserver_${GOHTTPLATEST}_linux_arm64.tar.gz"
+    wget "$(github_url "https://github.com/codeskyblue/gohttpserver/releases/download/${GOHTTPLATEST}/gohttpserver_${GOHTTPLATEST}_linux_arm64.tar.gz")"
     tar -xf  gohttpserver_${GOHTTPLATEST}_linux_arm64.tar.gz
     elif [ "${ARCH}" = "armv7l" ] ; then
     echo "Go HTTP Server not supported on 32bit ARM devices"
